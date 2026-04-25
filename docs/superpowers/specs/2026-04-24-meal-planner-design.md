@@ -183,7 +183,7 @@ DELETE /api/preferences/<id>         # remove preference
 ### `suggestion_service.py`
 Selects recipes for empty week slots. Logic:
 1. Filter out recipes used in the last 3 weeks (`last_used_date`)
-2. Filter out microwave-only recipes (no `cook_method` entries — or any recipe explicitly tagged `microwave`)
+2. Filter out recipes with an empty `cook_method` list (treated as "needs tagging" — not surfaced in suggestions until at least one method is set). No microwave tag is permitted; recipes imported without a cook method must be tagged before use.
 3. Weight toward recipes matching active `preferences` (likes boost, dislikes suppress)
 4. Vary cook methods across the week (avoid scheduling oven 5 days in a row)
 5. If `makes_leftovers = true` on the selected dinner, offer to auto-fill next day's lunch as `"leftover:<id>"`
