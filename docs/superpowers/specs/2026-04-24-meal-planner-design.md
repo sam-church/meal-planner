@@ -20,7 +20,7 @@ A local web app for weekly meal planning, recipe management, shopping list gener
 - Shopping list generator with pantry staples exclusion
 - Quick "have it" toggle and "add to permanent staples" on shopping list view
 - Markdown shopping list export (Obsidian-ready)
-- Weekly macro summary display (calories, protein, carbs, fat — display only, no goals)
+- Week navigation (prev/next arrows + "New Week" button in planner header)
 - Soft preferences list (likes/dislikes, informs suggestions)
 - Google Calendar sync to "Tripe F" calendar
 - Frontend design polish via `frontend-design` skill (install plugin before frontend phase)
@@ -31,6 +31,7 @@ A local web app for weekly meal planning, recipe management, shopping list gener
 - User authentication
 - Generic URL scraper (JSON-LD only)
 - Batch cooking detail beyond Sunday prep slot (v2)
+- Weekly macro summary — deferred to v2 (nutrition data too incomplete for manual/JSON-LD imports to be reliable)
 
 ---
 
@@ -110,6 +111,8 @@ Flask serves the single-page frontend at `/`. All data operations go through `/a
 | `week_plan_id` | INTEGER FK | |
 | `items` | JSON | `{ingredient_name: {quantity, unit, category, checked, is_staple}}` |
 | `generated_at` | DATETIME | |
+
+One shopping list per week plan. Regenerating overwrites the existing list for that week — no history kept.
 
 ### `pantry_staples`
 | Field | Type | Notes |
@@ -239,13 +242,13 @@ Single HTML page (`index.html`) with four views toggled by vanilla JS router. No
 ### Views
 
 **Meal Planner** (default)
+- Planner header: prev/next week arrows, current week label (e.g. "Week of Apr 28"), "New Week" button
 - 5-column (Mon–Fri) × 2-row (Lunch/Dinner) grid
 - Optional Sunday prep row, toggled on/off
 - Each cell: recipe name, prep + cook time, cook method icons
 - Click cell → recipe picker modal
 - "Suggest" button fills empty slots
 - Leftover auto-fill prompt when `makes_leftovers = true` dinner is placed
-- Weekly macro summary bar (totals across all slots)
 - "Generate Shopping List" and "Sync to Calendar" buttons in header
 
 **Recipe Library**
