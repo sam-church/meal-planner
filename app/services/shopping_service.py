@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from app.database import db
 from app.models.recipe import Recipe
 from app.models.shopping_list import ShoppingList
@@ -58,11 +58,11 @@ def generate_shopping_list(week_plan):
     existing = ShoppingList.query.filter_by(week_plan_id=week_plan.id).first()
     if existing:
         existing.items = items
-        existing.generated_at = datetime.utcnow()
+        existing.generated_at = datetime.now(timezone.utc)
         db.session.commit()
         return existing
 
-    sl = ShoppingList(week_plan_id=week_plan.id, items=items, generated_at=datetime.utcnow())
+    sl = ShoppingList(week_plan_id=week_plan.id, items=items, generated_at=datetime.now(timezone.utc))
     db.session.add(sl)
     db.session.commit()
     return sl
