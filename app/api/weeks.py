@@ -56,3 +56,14 @@ def update_week(week_id):
         wp.notes = data['notes']
     db.session.commit()
     return jsonify(wp.to_dict())
+
+
+@bp.route('/<int:week_id>/suggest', methods=['POST'])
+def suggest(week_id):
+    wp = db.session.get(WeekPlan, week_id)
+    if not wp:
+        return jsonify({'error': 'Not found'}), 404
+    from app.services.suggestion_service import suggest_slots
+    wp.slots = suggest_slots(wp)
+    db.session.commit()
+    return jsonify(wp.to_dict())
