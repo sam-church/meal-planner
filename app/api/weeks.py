@@ -67,3 +67,22 @@ def suggest(week_id):
     wp.slots = suggest_slots(wp)
     db.session.commit()
     return jsonify(wp.to_dict())
+
+@bp.route('/<int:week_id>/shopping-list', methods=['POST'])
+def generate_shopping_list(week_id):
+    wp = db.session.get(WeekPlan, week_id)
+    if not wp:
+        return jsonify({'error': 'Not found'}), 404
+    from app.services.shopping_service import generate_shopping_list as _generate
+    sl = _generate(wp)
+    return jsonify(sl.to_dict()), 201
+
+@bp.route('/<int:week_id>/shopping-list', methods=['GET'])
+def get_shopping_list(week_id):
+    wp = db.session.get(WeekPlan, week_id)
+    if not wp:
+        return jsonify({'error': 'Not found'}), 404
+    sl = ShoppingList.query.filter_by(week_plan_id=week_id).first()
+    if not sl:
+        return jsonify(None)
+    return jsonify(sl.to_dict())
