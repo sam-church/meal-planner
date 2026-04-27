@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from app.database import db
 from app.models.recipe import Recipe
+import requests as http_requests
 
 bp = Blueprint('recipes', __name__, url_prefix='/api/recipes')
 
@@ -69,3 +70,60 @@ def delete_recipe(recipe_id):
     db.session.delete(recipe)
     db.session.commit()
     return '', 204
+
+
+@bp.route('/search', methods=['GET'])
+def search_spoonacular():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify({'error': 'query parameter q is required'}), 400
+    api_key = current_app.config.get('SPOONACULAR_API_KEY', '')
+    if not api_key:
+        return jsonify({'error': 'Spoonacular API key not configured'}), 503
+    try:
+        resp = http_requests.get(
+            'https://api.spoonacular.com/recipes/complexSearch',
+            params={'query': query, 'apiKey': api_key, 'number': 10},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return jsonify(resp.json())
+    except http_requests.RequestException as e:
+        return jsonify({'error': f'Spoonacular search failed: {str(e)}'}), 502
+
+
+@bp.route('/import/<int:spoonacular_id>', methods=['POST'])
+def import_spoonacular(spoonacular_id):
+    api_key = current_app.config.get('SPOONACULAR_API_KEY', '')
+    if not api_key:
+        return jsonify({'error': 'Spoonacular API key not configured'}), 503
+    try:
+        resp = http_requests.get(
+            f'https://api.spoonacular.com/recipes/{spoonacular_id}/information',
+            params={'apiKey': api_key, 'includeNutrition': True},
+            timeout=10,
+        )
+        resp.raise_for_status()
+    except http_requests.RequestException as e:
+        return jsonify({'error': f'Spoonacular fetch failed: {str(e)}'}), 502
+
+    from app.services.import_service import map_spoonacular
+    recipe_data = map_spoonacular(resp.json())
+    recipe = Recipe(**recipe_data)
+    db.session.add(recipe)
+    db.session.commit()
+    return jsonify(recipe.to_dict()), 201
+
+
+@bp.route('/import-url', methods=['POST'])
+def import_url():
+    data = request.get_json()
+    url = data.get('url', '').strip()
+    if not url:
+        return jsonify({'error': 'url is required'}), 400
+    api_key = current_app.config.get('SPOONACULAR_API_KEY', '')
+    from app.services.import_service import import_from_url
+    recipe_data = import_from_url(url, api_key or None)
+    if not recipe_data:
+        return jsonify({'error': 'Could not parse recipe from URL — check the URL or fill in details manually'}), 422
+    return jsonify(recipe_data)
