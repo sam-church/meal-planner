@@ -86,3 +86,15 @@ def get_shopping_list(week_id):
     if not sl:
         return jsonify(None)
     return jsonify(sl.to_dict())
+
+@bp.route('/<int:week_id>/export', methods=['GET'])
+def export_markdown(week_id):
+    wp = db.session.get(WeekPlan, week_id)
+    if not wp:
+        return jsonify({'error': 'Not found'}), 404
+    sl = ShoppingList.query.filter_by(week_plan_id=week_id).first()
+    if not sl:
+        return jsonify({'error': 'No shopping list for this week. Generate one first.'}), 404
+    from app.services.export_service import render_markdown
+    md = render_markdown(sl, wp)
+    return md, 200, {'Content-Type': 'text/plain; charset=utf-8'}
