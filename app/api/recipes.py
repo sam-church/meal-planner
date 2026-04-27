@@ -117,7 +117,7 @@ def import_spoonacular(spoonacular_id):
 
 @bp.route('/import-url', methods=['POST'])
 def import_url():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     url = data.get('url', '').strip()
     if not url:
         return jsonify({'error': 'url is required'}), 400
