@@ -23,3 +23,22 @@ def test_delete_preference(client):
     assert del_resp.status_code == 204
     list_resp = client.get('/api/preferences')
     assert list_resp.get_json() == []
+
+def test_add_preference_missing_type(client):
+    resp = client.post('/api/preferences', json={'value': 'spicy', 'scope': 'ingredient'})
+    assert resp.status_code == 400
+    assert 'error' in resp.get_json()
+
+def test_add_preference_invalid_type(client):
+    resp = client.post('/api/preferences', json={'type': 'love', 'value': 'spicy', 'scope': 'ingredient'})
+    assert resp.status_code == 400
+    assert 'error' in resp.get_json()
+
+def test_add_preference_invalid_scope(client):
+    resp = client.post('/api/preferences', json={'type': 'like', 'value': 'spicy', 'scope': 'country'})
+    assert resp.status_code == 400
+    assert 'error' in resp.get_json()
+
+def test_delete_nonexistent_preference(client):
+    resp = client.delete('/api/preferences/999')
+    assert resp.status_code == 404
