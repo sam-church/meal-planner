@@ -98,3 +98,34 @@ def export_markdown(week_id):
     from app.services.export_service import render_markdown
     md = render_markdown(sl, wp)
     return md, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+@bp.route('/<int:week_id>/sync-calendar', methods=['POST'])
+def sync_calendar(week_id):
+    wp = db.session.get(WeekPlan, week_id)
+    if not wp:
+        return jsonify({'error': 'Not found'}), 404
+    import config as cfg
+
+    slots_with_recipes = {}
+    for slot_key, val in (wp.slots or {}).items():
+        if not val:
+            continue
+        val_str = str(val)
+        if val_str.startswith('leftover:'):
+            recipe_id = int(val_str.split(':')[1])
+        else:
+            recipe_id = int(val_str)
+        slots_with_recipes[slot_key] = db.session.get(Recipe, recipe_id)
+
+    try:
+        from app.services.calendar_service import sync_week
+        sync_week(wp, slots_with_recipes, cfg)
+        wp.calendar_synced = True
+        db.session.commit()
+        return jsonify({'synced': True})
+    except FileNotFoundError:
+        return jsonify({'error': 'credentials.json not found at data/credentials.json — see Google Cloud setup instructions'}), 503
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Calendar sync failed: {str(e)}'}), 500
