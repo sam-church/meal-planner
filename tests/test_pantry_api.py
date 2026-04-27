@@ -1,5 +1,3 @@
-import json
-
 def test_list_pantry_empty(client):
     resp = client.get('/api/pantry')
     assert resp.status_code == 200
@@ -23,6 +21,7 @@ def test_list_pantry_after_add(client):
 
 def test_delete_pantry_staple(client):
     add_resp = client.post('/api/pantry', json={'ingredient_name': 'pepper'})
+    assert add_resp.get_json()['category'] == 'other'
     staple_id = add_resp.get_json()['id']
     del_resp = client.delete(f'/api/pantry/{staple_id}')
     assert del_resp.status_code == 204
@@ -32,3 +31,13 @@ def test_delete_pantry_staple(client):
 def test_delete_nonexistent_pantry_staple(client):
     resp = client.delete('/api/pantry/999')
     assert resp.status_code == 404
+
+def test_add_pantry_staple_missing_name(client):
+    resp = client.post('/api/pantry', json={})
+    assert resp.status_code == 400
+    assert 'error' in resp.get_json()
+
+def test_add_duplicate_pantry_staple(client):
+    client.post('/api/pantry', json={'ingredient_name': 'salt'})
+    resp = client.post('/api/pantry', json={'ingredient_name': 'salt'})
+    assert resp.status_code == 409

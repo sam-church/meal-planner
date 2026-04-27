@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.database import db
 from app.models.pantry_staple import PantryStaple
+from sqlalchemy.exc import IntegrityError
 
 bp = Blueprint('pantry', __name__, url_prefix='/api/pantry')
 
@@ -11,13 +12,20 @@ def list_staples():
 
 @bp.route('', methods=['POST'])
 def add_staple():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+    if not data.get('ingredient_name'):
+        return jsonify({'error': 'ingredient_name is required'}), 400
+
     staple = PantryStaple(
         ingredient_name=data['ingredient_name'],
         category=data.get('category', 'other'),
     )
     db.session.add(staple)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'ingredient already exists in pantry'}), 409
     return jsonify(staple.to_dict()), 201
 
 @bp.route('/<int:staple_id>', methods=['DELETE'])
