@@ -415,8 +415,132 @@ function openImportUrlModal() {
     }
   });
 }
-function renderShopping() {
-  document.getElementById('view-shopping').innerHTML = '<p>Shopping loading...</p>';
+// ── Shopping list view ───────────────────────────────────────────────────────
+async function renderShopping() {
+  const el = document.getElementById('view-shopping');
+  el.innerHTML = '<p>Loading...</p>';
+  try {
+    state.weeks = await api('GET', '/weeks');
+    if (state.weeks.length === 0) {
+      el.innerHTML = '<div class="empty-state"><p>No weeks yet. Create a week in the Planner first.</p></div>';
+      return;
+    }
+    const weekId = state.currentWeekId || state.weeks[0].id;
+    const week = state.weeks.find(w => w.id === weekId) || state.weeks[0];
+    const sl = await api('GET', `/weeks/${week.id}/shopping-list`);
+    el.innerHTML = shoppingHTML(week, sl);
+    bindShoppingEvents(week, sl);
+  } catch (e) { showError(e.message); }
+}
+
+const CAT_ORDER = ['produce', 'protein', 'dairy', 'pantry', 'other'];
+
+function shoppingHTML(week, sl) {
+  const weekLabel = new Date(week.week_start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  if (!sl || !sl.items || Object.keys(sl.items).length === 0) {
+    return `
+      <div class="view-header">
+        <div>
+          <div class="view-title">Shopping List</div>
+          <div class="view-subtitle">Week of ${weekLabel}</div>
+        </div>
+        <button class="btn btn-primary" id="btn-regen">Generate</button>
+      </div>
+      <div class="empty-state"><p>No shopping list yet. Generate one from the Planner view, or click Generate above.</p></div>`;
+  }
+
+  const items = sl.items;
+  const byCat = {};
+  for (const [name, data] of Object.entries(items)) {
+    const cat = data.category || 'other';
+    if (!byCat[cat]) byCat[cat] = [];
+    byCat[cat].push([name, data]);
+  }
+
+  const allCats = [...CAT_ORDER, ...Object.keys(byCat).filter(c => !CAT_ORDER.includes(c))];
+  let sections = '';
+  for (const cat of allCats) {
+    if (!byCat[cat]) continue;
+    const catItems = byCat[cat].sort((a, b) => a[0].localeCompare(b[0]));
+    sections += `<div class="shopping-section">
+      <div class="shopping-section-title">${cat.charAt(0).toUpperCase() + cat.slice(1)}</div>
+      ${catItems.map(([name, data]) => {
+        const qty = data.quantity ? `${parseFloat(data.quantity).toFixed(1)} ${data.unit || ''}`.trim() : '';
+        return `<div class="shopping-item ${data.checked ? 'checked' : ''}" data-name="${name}">
+          <input type="checkbox" class="item-check" data-name="${name}" ${data.checked ? 'checked' : ''}>
+          <span class="item-label">${name}${qty ? '<span class="item-qty"> — ' + qty + '</span>' : ''}</span>
+          <button class="pantry-btn" data-name="${name}" title="Add to pantry staples">☆</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  const total = Object.keys(items).length;
+  const checked = Object.values(items).filter(d => d.checked).length;
+
+  return `
+    <div class="view-header">
+      <div>
+        <div class="view-title">Shopping List</div>
+        <div class="view-subtitle">Week of ${weekLabel} &mdash; ${checked}/${total} items checked</div>
+      </div>
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn btn-secondary" id="btn-export-md">Export Markdown</button>
+        <button class="btn btn-primary" id="btn-regen">Regenerate</button>
+      </div>
+    </div>
+    <div class="shopping-columns">${sections}</div>`;
+}
+
+function bindShoppingEvents(week, sl) {
+  document.getElementById('btn-regen')?.addEventListener('click', async () => {
+    try {
+      await api('POST', `/weeks/${week.id}/shopping-list`);
+      renderShopping();
+    } catch (e) { showError(e.message); }
+  });
+
+  document.getElementById('btn-export-md')?.addEventListener('click', async () => {
+    try {
+      const resp = await fetch(`/api/weeks/${week.id}/export`);
+      if (!resp.ok) throw new Error(await resp.text());
+      const text = await resp.text();
+      const blob = new Blob([text], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `shopping-${week.week_start_date}.md`;
+      a.click();
+    } catch (e) { showError(e.message); }
+  });
+
+  document.querySelectorAll('.item-check').forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      const name = checkbox.dataset.name;
+      const updated = { ...sl.items };
+      updated[name] = { ...updated[name], checked: checkbox.checked };
+      sl.items = updated;
+      checkbox.closest('.shopping-item').classList.toggle('checked', checkbox.checked);
+      // Update subtitle count
+      const total = Object.keys(sl.items).length;
+      const checked = Object.values(sl.items).filter(d => d.checked).length;
+      const sub = document.querySelector('.view-subtitle');
+      if (sub) sub.innerHTML = sub.innerHTML.replace(/\d+\/\d+ items checked/, `${checked}/${total} items checked`);
+    });
+  });
+
+  document.querySelectorAll('.pantry-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const name = btn.dataset.name;
+      const item = sl?.items?.[name] || {};
+      try {
+        await api('POST', '/pantry', { ingredient_name: name, category: item.category || 'other' });
+        btn.textContent = '★';
+        btn.title = 'Added to pantry staples';
+        btn.style.color = 'var(--accent)';
+      } catch (e) { showError(e.message); }
+    });
+  });
 }
 function renderSettings() {
   document.getElementById('view-settings').innerHTML = '<p>Settings loading...</p>';
