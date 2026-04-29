@@ -71,8 +71,8 @@ async function renderPlanner() {
 }
 
 function plannerEmptyHTML() {
-  return `<div style="text-align:center;padding:3rem">
-    <p style="margin-bottom:1rem;color:#666">No weeks yet.</p>
+  return `<div class="empty-state">
+    <p>No weeks planned yet. Create your first week to get started.</p>
     <button class="btn btn-primary" id="btn-new-week">Create First Week</button>
   </div>`;
 }
@@ -186,10 +186,10 @@ function openRecipePicker(week, slotKey) {
   ).join('') || '<p>No recipes in library yet.</p>';
 
   openModal(`
-    <h3 style="margin-bottom:1rem">Pick a recipe for ${slotKey.replace('_', ' ')}</h3>
-    <input id="picker-search" class="picker-search" placeholder="Search..." style="width:100%;margin-bottom:0.75rem;padding:0.4rem">
+    <div class="modal-title">Pick a recipe — ${slotKey.replace(/_/g, ' ')}</div>
+    <input id="picker-search" class="picker-search" type="search" placeholder="Search recipes…">
     <div id="picker-list">${items}</div>
-    <button class="btn btn-secondary btn-sm" style="margin-top:0.75rem" id="btn-clear-slot">Clear slot</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:0.75rem" id="btn-clear-slot">Clear slot</button>
   `);
 
   document.getElementById('picker-search').addEventListener('input', e => {
