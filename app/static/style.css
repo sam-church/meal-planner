@@ -582,3 +582,62 @@ input:focus, select:focus, textarea:focus {
   gap: 0.5rem;
 }
 .add-tag-row input { flex: 1; }
+
+/* ── Recipe library table ───────────────────────────────────────────────────── */
+.recipe-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.recipe-table th {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.65rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.recipe-table td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+.recipe-table tr:last-child td { border-bottom: none; }
+.recipe-table tr:hover td { background: var(--bg-muted); }
+.recipe-name-cell { font-weight: 500; color: var(--text); }
+.actions-cell { white-space: nowrap; display: flex; gap: 0.4rem; }
+.table-empty { text-align: center; color: var(--text-muted); padding: 2.5rem; font-style: italic; }
+.text-muted { color: var(--text-light); }
+
+/* ── Recipe form ────────────────────────────────────────────────────────────── */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+
+.method-checks {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0;
+}
+.method-check-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  cursor: pointer;
+  margin: 0;
+}
+.method-check-label input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+textarea { resize: vertical; }

@@ -220,8 +220,200 @@ function openRecipePicker(week, slotKey) {
     } catch (e) { showError(e.message); }
   });
 }
-function renderRecipes() {
-  document.getElementById('view-recipes').innerHTML = '<p>Recipes loading...</p>';
+// ── Recipe library view ──────────────────────────────────────────────────────
+async function renderRecipes() {
+  const el = document.getElementById('view-recipes');
+  el.innerHTML = '<p>Loading...</p>';
+  try {
+    state.recipes = await api('GET', '/recipes');
+    el.innerHTML = recipesHTML(state.recipes);
+    bindRecipesEvents();
+  } catch (e) { showError(e.message); }
+}
+
+function recipesHTML(recipes) {
+  const rows = recipes.length === 0
+    ? '<tr><td colspan="5" class="table-empty">No recipes yet. Add one above.</td></tr>'
+    : recipes.map(r => `
+      <tr>
+        <td class="recipe-name-cell">${r.name}</td>
+        <td>${(r.cook_method || []).map(m => `<span class="recipe-tag method">${m.replace('_',' ')}</span>`).join(' ') || '<span class="text-muted">—</span>'}</td>
+        <td>${(r.tags || []).map(t => `<span class="recipe-tag">${t}</span>`).join(' ') || '<span class="text-muted">—</span>'}</td>
+        <td class="text-muted">${r.last_used_date || 'never'}</td>
+        <td class="actions-cell">
+          <button class="btn btn-ghost btn-xs" data-action="edit" data-id="${r.id}">Edit</button>
+          <button class="btn btn-danger btn-xs" data-action="delete" data-id="${r.id}">Delete</button>
+        </td>
+      </tr>`).join('');
+
+  return `
+    <div class="view-header">
+      <div>
+        <div class="view-title">Recipe Library</div>
+        <div class="view-subtitle">${recipes.length} recipe${recipes.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn btn-secondary" id="btn-import-url">Import from URL</button>
+        <button class="btn btn-primary" id="btn-add-recipe">+ Add Recipe</button>
+      </div>
+    </div>
+    <div class="card" style="overflow:hidden">
+      <table class="recipe-table">
+        <thead><tr><th>Name</th><th>Method</th><th>Tags</th><th>Last Used</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function bindRecipesEvents() {
+  document.getElementById('btn-add-recipe').addEventListener('click', () => openRecipeForm(null));
+  document.getElementById('btn-import-url').addEventListener('click', openImportUrlModal);
+
+  document.querySelectorAll('[data-action="edit"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const recipe = state.recipes.find(r => r.id === parseInt(btn.dataset.id));
+      openRecipeForm(recipe);
+    });
+  });
+  document.querySelectorAll('[data-action="delete"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this recipe?')) return;
+      try {
+        await api('DELETE', `/recipes/${btn.dataset.id}`);
+        renderRecipes();
+      } catch (e) { showError(e.message); }
+    });
+  });
+}
+
+function recipeFormHTML(recipe) {
+  const r = recipe || {};
+  return `
+    <div class="modal-title">${r.id ? 'Edit Recipe' : 'Add Recipe'}</div>
+    <div class="form-grid">
+      <div class="field-group" style="grid-column:1/-1">
+        <label class="field-label">Name *</label>
+        <input name="name" value="${r.name || ''}" required placeholder="Recipe name">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Source URL</label>
+        <input name="source_url" type="url" value="${r.source_url || ''}" placeholder="https://…">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Base Servings</label>
+        <input name="base_servings" type="number" min="1" value="${r.base_servings || 2}">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Prep Time (mins)</label>
+        <input name="prep_time_mins" type="number" min="0" value="${r.prep_time_mins || ''}">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Cook Time (mins)</label>
+        <input name="cook_time_mins" type="number" min="0" value="${r.cook_time_mins || ''}">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Cook Methods</label>
+      <div class="method-checks">
+        ${['oven','stove','grill','air_fryer'].map(m =>
+          `<label class="method-check-label"><input type="checkbox" name="cook_method" value="${m}" ${(r.cook_method||[]).includes(m) ? 'checked' : ''}> ${m.replace('_',' ')}</label>`
+        ).join('')}
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Makes Leftovers</label>
+      <label class="method-check-label"><input name="makes_leftovers" type="checkbox" ${r.makes_leftovers ? 'checked' : ''}> Cook for 4, use second serving as leftovers</label>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Tags (comma-separated)</label>
+      <input name="tags" value="${(r.tags||[]).join(', ')}" placeholder="chicken, quick, weeknight">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Ingredients (one per line: name, quantity unit, category)</label>
+      <textarea name="ingredients_raw" rows="5" placeholder="chicken breast, 1 lb, protein&#10;olive oil, 2 tbsp, pantry">${(r.ingredients||[]).map(i => `${i.name}, ${i.quantity} ${i.unit}, ${i.category}`).join('\n')}</textarea>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Notes</label>
+      <textarea name="notes" rows="2" placeholder="Any notes…">${r.notes || ''}</textarea>
+    </div>
+    <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+      <button class="btn btn-primary" id="btn-save-recipe">Save Recipe</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>`;
+}
+
+function openRecipeForm(recipe) {
+  openModal(recipeFormHTML(recipe));
+  document.getElementById('btn-save-recipe').addEventListener('click', async () => {
+    const form = document.querySelector('#modal-box');
+    const name = form.querySelector('[name="name"]').value.trim();
+    if (!name) { alert('Name is required'); return; }
+
+    const methods = [...form.querySelectorAll('[name="cook_method"]:checked')].map(el => el.value);
+    const tagsRaw = form.querySelector('[name="tags"]').value;
+    const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+    const ingredientsRaw = form.querySelector('[name="ingredients_raw"]').value;
+    const ingredients = ingredientsRaw.split('\n').map(line => {
+      const parts = line.split(',').map(p => p.trim());
+      const [iName, qtyUnit, cat] = parts;
+      if (!iName) return null;
+      const qpParts = (qtyUnit || '').split(' ');
+      const qty = parseFloat(qpParts[0]) || '';
+      const unit = qpParts.slice(1).join(' ') || '';
+      return { name: iName, quantity: qty, unit, category: cat || 'other' };
+    }).filter(Boolean);
+
+    const body = {
+      name,
+      source_url: form.querySelector('[name="source_url"]').value.trim() || null,
+      base_servings: parseInt(form.querySelector('[name="base_servings"]').value) || 2,
+      prep_time_mins: parseInt(form.querySelector('[name="prep_time_mins"]').value) || null,
+      cook_time_mins: parseInt(form.querySelector('[name="cook_time_mins"]').value) || null,
+      makes_leftovers: form.querySelector('[name="makes_leftovers"]').checked,
+      cook_method: methods,
+      tags,
+      ingredients,
+      notes: form.querySelector('[name="notes"]').value.trim() || null,
+    };
+
+    try {
+      if (recipe?.id) {
+        await api('PUT', `/recipes/${recipe.id}`, body);
+      } else {
+        await api('POST', '/recipes', body);
+      }
+      closeModal();
+      renderRecipes();
+    } catch (e) { showError(e.message); }
+  });
+}
+
+function openImportUrlModal() {
+  openModal(`
+    <div class="modal-title">Import Recipe from URL</div>
+    <p style="color:var(--text-muted);margin-bottom:1rem;font-size:0.875rem;line-height:1.5">Tries Spoonacular first, then JSON-LD schema — works with skinnytaste.com and most recipe blogs.</p>
+    <div class="field-group">
+      <label class="field-label">Recipe URL</label>
+      <input id="import-url-input" type="url" placeholder="https://…">
+    </div>
+    <div style="display:flex;align-items:center;gap:0.75rem">
+      <button class="btn btn-primary" id="btn-do-import">Import</button>
+      <span id="import-status" style="font-size:0.875rem;color:var(--text-muted)"></span>
+    </div>
+  `);
+  document.getElementById('btn-do-import').addEventListener('click', async () => {
+    const url = document.getElementById('import-url-input').value.trim();
+    if (!url) return;
+    document.getElementById('import-status').textContent = 'Fetching…';
+    try {
+      const data = await api('POST', '/recipes/import-url', { url });
+      closeModal();
+      openRecipeForm(data);
+    } catch (e) {
+      document.getElementById('import-status').textContent = '';
+      showError(e.message);
+    }
+  });
 }
 function renderShopping() {
   document.getElementById('view-shopping').innerHTML = '<p>Shopping loading...</p>';
