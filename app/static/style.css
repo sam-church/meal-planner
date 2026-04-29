@@ -36,9 +36,34 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   /* Subtle paper noise texture */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
 }
+
+/* ── Focus rings ────────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* ── Skeleton loading ───────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-muted) 25%, var(--border) 50%, var(--bg-muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--radius);
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-line { height: 0.9em; margin-bottom: 0.6rem; }
+.skeleton-line.wide  { width: 80%; }
+.skeleton-line.med   { width: 55%; }
+.skeleton-line.short { width: 35%; }
 
 /* ── Navigation ─────────────────────────────────────────────────────────────── */
 .top-nav {
@@ -94,6 +119,7 @@ body {
   color: var(--nav-text);
   background: rgba(255,255,255,0.12);
   font-weight: 500;
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 /* ── Layout ─────────────────────────────────────────────────────────────────── */
@@ -768,3 +794,62 @@ textarea { resize: vertical; }
 }
 .pref-like    { background: #ecf7ed; color: #2d6a30; border: 1px solid #c3e6c5; }
 .pref-dislike { background: #fdf0f0; color: #9b2c2c; border: 1px solid #f5c6c6; }
+
+/* ── Polish ─────────────────────────────────────────────────────────────────── */
+
+/* Disabled buttons */
+.btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Select elements inherit the design system */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2378716c' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  padding-right: 2rem;
+}
+
+/* Planner cell: + hint on hover when empty */
+.planner-grid td:hover .cell-empty::after {
+  content: ' +';
+  color: var(--accent);
+  font-style: normal;
+  font-size: 0.9rem;
+}
+
+/* Modal close button */
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-light);
+  line-height: 1;
+  padding: 0.15rem 0.3rem;
+  border-radius: var(--radius);
+  transition: color 0.15s, background 0.15s;
+}
+.modal-close:hover { color: var(--text); background: var(--bg-muted); }
+.modal-box { position: relative; }
+
+/* Validation error inline */
+.field-error {
+  font-size: 0.8rem;
+  color: #b91c1c;
+  margin-top: 0.3rem;
+}
+
+/* Responsive: collapse two-column grids on narrow screens */
+@media (max-width: 720px) {
+  main { padding: 1.25rem 1rem; }
+  .settings-grid { grid-template-columns: 1fr; }
+  .shopping-columns { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+  .planner-grid th, .planner-grid td { min-width: 80px; font-size: 0.8rem; padding: 0.4rem 0.25rem; }
+}

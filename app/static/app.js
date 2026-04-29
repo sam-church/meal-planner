@@ -37,9 +37,18 @@ function showError(msg) {
   banner.onclick = () => banner.classList.add('hidden');
 }
 
+// ── Skeleton loading ─────────────────────────────────────────────────────────
+function skeletonHTML(lines = 3) {
+  return '<div style="padding:0.5rem 0">' +
+    ['wide','med','short','wide','med'].slice(0, lines).map(w =>
+      `<div class="skeleton skeleton-line ${w}"></div>`
+    ).join('') + '</div>';
+}
+
 // ── Modal ────────────────────────────────────────────────────────────────────
 function openModal(html) {
-  document.getElementById('modal-box').innerHTML = html;
+  const box = document.getElementById('modal-box');
+  box.innerHTML = `<button class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>` + html;
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
 
@@ -54,7 +63,7 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
 // ── Planner view ─────────────────────────────────────────────────────────────
 async function renderPlanner() {
   const el = document.getElementById('view-planner');
-  el.innerHTML = '<p>Loading...</p>';
+  el.innerHTML = skeletonHTML(4);
   try {
     state.weeks = await api('GET', '/weeks');
     state.recipes = await api('GET', '/recipes');
@@ -223,7 +232,7 @@ function openRecipePicker(week, slotKey) {
 // ── Recipe library view ──────────────────────────────────────────────────────
 async function renderRecipes() {
   const el = document.getElementById('view-recipes');
-  el.innerHTML = '<p>Loading...</p>';
+  el.innerHTML = skeletonHTML(5);
   try {
     state.recipes = await api('GET', '/recipes');
     el.innerHTML = recipesHTML(state.recipes);
@@ -346,8 +355,19 @@ function openRecipeForm(recipe) {
   openModal(recipeFormHTML(recipe));
   document.getElementById('btn-save-recipe').addEventListener('click', async () => {
     const form = document.querySelector('#modal-box');
-    const name = form.querySelector('[name="name"]').value.trim();
-    if (!name) { alert('Name is required'); return; }
+    const nameInput = form.querySelector('[name="name"]');
+    const name = nameInput.value.trim();
+    if (!name) {
+      let err = nameInput.nextElementSibling;
+      if (!err || !err.classList.contains('field-error')) {
+        err = document.createElement('div');
+        err.className = 'field-error';
+        err.textContent = 'Name is required.';
+        nameInput.after(err);
+      }
+      nameInput.focus();
+      return;
+    }
 
     const methods = [...form.querySelectorAll('[name="cook_method"]:checked')].map(el => el.value);
     const tagsRaw = form.querySelector('[name="tags"]').value;
@@ -418,7 +438,7 @@ function openImportUrlModal() {
 // ── Shopping list view ───────────────────────────────────────────────────────
 async function renderShopping() {
   const el = document.getElementById('view-shopping');
-  el.innerHTML = '<p>Loading...</p>';
+  el.innerHTML = skeletonHTML(4);
   try {
     state.weeks = await api('GET', '/weeks');
     if (state.weeks.length === 0) {
@@ -545,7 +565,7 @@ function bindShoppingEvents(week, sl) {
 // ── Settings view ────────────────────────────────────────────────────────────
 async function renderSettings() {
   const el = document.getElementById('view-settings');
-  el.innerHTML = '<p>Loading...</p>';
+  el.innerHTML = skeletonHTML(3);
   try {
     const [pantry, prefs] = await Promise.all([
       api('GET', '/pantry'),
