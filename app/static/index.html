@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meal Planner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="top-nav">
+    <span class="app-title">Meal Planner</span>
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-view="planner">Planner</button>
+      <button class="nav-tab" data-view="recipes">Recipes</button>
+      <button class="nav-tab" data-view="shopping">Shopping</button>
+      <button class="nav-tab" data-view="settings">Settings</button>
+    </div>
+  </nav>
+
+  <main>
+    <div id="view-planner" class="view active"></div>
+    <div id="view-recipes" class="view"></div>
+    <div id="view-shopping" class="view"></div>
+    <div id="view-settings" class="view"></div>
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div id="modal-box" class="modal-box"></div>
+  </div>
+
+  <div id="error-banner" class="error-banner hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
