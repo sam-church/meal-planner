@@ -542,8 +542,134 @@ function bindShoppingEvents(week, sl) {
     });
   });
 }
-function renderSettings() {
-  document.getElementById('view-settings').innerHTML = '<p>Settings loading...</p>';
+// ── Settings view ────────────────────────────────────────────────────────────
+async function renderSettings() {
+  const el = document.getElementById('view-settings');
+  el.innerHTML = '<p>Loading...</p>';
+  try {
+    const [pantry, prefs] = await Promise.all([
+      api('GET', '/pantry'),
+      api('GET', '/preferences'),
+    ]);
+    el.innerHTML = settingsHTML(pantry, prefs);
+    bindSettingsEvents();
+  } catch (e) { showError(e.message); }
+}
+
+function settingsHTML(pantry, prefs) {
+  const pantryRows = pantry.length
+    ? pantry.map(s =>
+        `<div class="settings-item" data-id="${s.id}">
+          <span class="settings-item-name">${s.ingredient_name}</span>
+          <span class="recipe-tag">${s.category}</span>
+          <button class="btn btn-ghost btn-xs" data-action="delete-pantry" data-id="${s.id}">Remove</button>
+        </div>`
+      ).join('')
+    : '<p class="settings-empty">None yet.</p>';
+
+  const prefRows = prefs.length
+    ? prefs.map(p =>
+        `<div class="settings-item" data-id="${p.id}">
+          <span class="pref-badge pref-${p.type}">${p.type}</span>
+          <span class="settings-item-name">${p.value}</span>
+          <span class="recipe-tag">${p.scope}</span>
+          <button class="btn btn-ghost btn-xs" data-action="delete-pref" data-id="${p.id}">Remove</button>
+        </div>`
+      ).join('')
+    : '<p class="settings-empty">None yet.</p>';
+
+  return `
+    <div class="view-header">
+      <div class="view-title">Settings</div>
+    </div>
+
+    <div class="settings-grid">
+      <section class="settings-section">
+        <div class="settings-section-title">Pantry Staples</div>
+        <p class="settings-description">Ingredients always on hand — excluded from shopping lists.</p>
+        <div class="settings-add-row">
+          <input id="new-staple-name" placeholder="Ingredient name" style="flex:1">
+          <select id="new-staple-cat">
+            <option value="pantry">pantry</option>
+            <option value="produce">produce</option>
+            <option value="protein">protein</option>
+            <option value="dairy">dairy</option>
+            <option value="other">other</option>
+          </select>
+          <button class="btn btn-primary btn-sm" id="btn-add-staple">Add</button>
+        </div>
+        <div id="pantry-list">${pantryRows}</div>
+      </section>
+
+      <section class="settings-section">
+        <div class="settings-section-title">Preferences</div>
+        <p class="settings-description">Likes and dislikes used to weight meal suggestions.</p>
+        <div class="settings-add-row">
+          <input id="new-pref-value" placeholder="e.g. spicy, fish, Mediterranean" style="flex:1">
+          <select id="new-pref-type">
+            <option value="like">like</option>
+            <option value="dislike">dislike</option>
+          </select>
+          <select id="new-pref-scope">
+            <option value="ingredient">ingredient</option>
+            <option value="cuisine">cuisine</option>
+          </select>
+          <button class="btn btn-primary btn-sm" id="btn-add-pref">Add</button>
+        </div>
+        <div id="pref-list">${prefRows}</div>
+      </section>
+    </div>`;
+}
+
+function bindSettingsEvents() {
+  document.getElementById('btn-add-staple').addEventListener('click', async () => {
+    const name = document.getElementById('new-staple-name').value.trim();
+    const cat = document.getElementById('new-staple-cat').value;
+    if (!name) return;
+    try {
+      await api('POST', '/pantry', { ingredient_name: name, category: cat });
+      document.getElementById('new-staple-name').value = '';
+      renderSettings();
+    } catch (e) { showError(e.message); }
+  });
+
+  document.getElementById('new-staple-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-add-staple').click();
+  });
+
+  document.getElementById('btn-add-pref').addEventListener('click', async () => {
+    const value = document.getElementById('new-pref-value').value.trim();
+    const type = document.getElementById('new-pref-type').value;
+    const scope = document.getElementById('new-pref-scope').value;
+    if (!value) return;
+    try {
+      await api('POST', '/preferences', { type, value, scope });
+      document.getElementById('new-pref-value').value = '';
+      renderSettings();
+    } catch (e) { showError(e.message); }
+  });
+
+  document.getElementById('new-pref-value').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-add-pref').click();
+  });
+
+  document.querySelectorAll('[data-action="delete-pantry"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await api('DELETE', `/pantry/${btn.dataset.id}`);
+        renderSettings();
+      } catch (e) { showError(e.message); }
+    });
+  });
+
+  document.querySelectorAll('[data-action="delete-pref"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await api('DELETE', `/preferences/${btn.dataset.id}`);
+        renderSettings();
+      } catch (e) { showError(e.message); }
+    });
+  });
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
