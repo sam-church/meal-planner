@@ -21,6 +21,8 @@ def generate_shopping_list(week_plan):
         recipe = db.session.get(Recipe, recipe_id)
         if not recipe:
             continue
+        if 'hungryroot' in (recipe.tags or []):
+            continue  # Hungryroot handles its own groceries
 
         if slot_key == 'sunday_prep' or recipe.makes_leftovers:
             target = 4

@@ -90,8 +90,15 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
 const MEAL_KEYS = ['lunch', 'dinner'];
 
+function weekEndLabel(week_start_date) {
+  const monday = new Date(week_start_date + 'T12:00:00');
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  return friday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function plannerHTML(week) {
-  const weekLabel = new Date(week.week_start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const weekLabel = weekEndLabel(week.week_start_date);
   const prevWeek = state.weeks.find(w => w.id < week.id);
   const nextWeek = state.weeks.find(w => w.id > week.id);
 
@@ -112,7 +119,7 @@ function plannerHTML(week) {
   return `
     <div class="planner-header">
       <button class="btn btn-secondary btn-sm" id="btn-prev" ${!prevWeek ? 'disabled' : ''}>← Prev</button>
-      <span class="week-label">Week of ${weekLabel}</span>
+      <span class="week-label">Week ending ${weekLabel}</span>
       <button class="btn btn-secondary btn-sm" id="btn-next" ${!nextWeek ? 'disabled' : ''}>Next →</button>
       <button class="btn btn-primary btn-sm" id="btn-new-week">+ New Week</button>
     </div>
@@ -137,7 +144,8 @@ function cellContent(val) {
   const recipe = state.recipes.find(r => r.id === (typeof val === 'string' ? parseInt(val) : val));
   if (!recipe) return '<span class="cell-empty">—</span>';
   const methods = (recipe.cook_method || []).join(', ');
-  return `<span class="cell-recipe" title="${methods}">${recipe.name}</span>`;
+  const hrBadge = (recipe.tags || []).includes('hungryroot') ? ' <span class="hr-badge">HR</span>' : '';
+  return `<span class="cell-recipe" title="${methods}">${recipe.name}${hrBadge}</span>`;
 }
 
 function bindPlannerEvents(week) {
@@ -180,7 +188,7 @@ async function createNewWeek() {
   const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   const monday = new Date(today);
   monday.setDate(today.getDate() + daysToMonday);
-  const iso = monday.toISOString().split('T')[0];
+  const iso = [monday.getFullYear(), String(monday.getMonth() + 1).padStart(2, '0'), String(monday.getDate()).padStart(2, '0')].join('-');
   try {
     const week = await api('POST', '/weeks', { week_start_date: iso });
     state.weeks.unshift(week);
@@ -378,8 +386,22 @@ function openRecipeForm(recipe) {
       const [iName, qtyUnit, cat] = parts;
       if (!iName) return null;
       const qpParts = (qtyUnit || '').split(' ');
-      const qty = parseFloat(qpParts[0]) || '';
-      const unit = qpParts.slice(1).join(' ') || '';
+      let qty = '', unitStart = 0;
+      if (qpParts.length >= 2 && /^\d+$/.test(qpParts[0]) && /^\d+\/\d+$/.test(qpParts[1])) {
+        // mixed number: e.g. "1 1/2 lb"
+        const [num, den] = qpParts[1].split('/').map(Number);
+        qty = parseInt(qpParts[0]) + num / den;
+        unitStart = 2;
+      } else if (/^\d+\/\d+$/.test(qpParts[0])) {
+        // simple fraction: e.g. "1/2 lb"
+        const [num, den] = qpParts[0].split('/').map(Number);
+        qty = num / den;
+        unitStart = 1;
+      } else {
+        qty = parseFloat(qpParts[0]) || '';
+        unitStart = 1;
+      }
+      const unit = qpParts.slice(unitStart).join(' ') || '';
       return { name: iName, quantity: qty, unit, category: cat || 'other' };
     }).filter(Boolean);
 
@@ -456,14 +478,14 @@ async function renderShopping() {
 const CAT_ORDER = ['produce', 'protein', 'dairy', 'pantry', 'other'];
 
 function shoppingHTML(week, sl) {
-  const weekLabel = new Date(week.week_start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const weekLabel = weekEndLabel(week.week_start_date);
 
   if (!sl || !sl.items || Object.keys(sl.items).length === 0) {
     return `
       <div class="view-header">
         <div>
           <div class="view-title">Shopping List</div>
-          <div class="view-subtitle">Week of ${weekLabel}</div>
+          <div class="view-subtitle">Week ending ${weekLabel}</div>
         </div>
         <button class="btn btn-primary" id="btn-regen">Generate</button>
       </div>
@@ -503,7 +525,7 @@ function shoppingHTML(week, sl) {
     <div class="view-header">
       <div>
         <div class="view-title">Shopping List</div>
-        <div class="view-subtitle">Week of ${weekLabel} &mdash; ${checked}/${total} items checked</div>
+        <div class="view-subtitle">Week ending ${weekLabel} &mdash; ${checked}/${total} items checked</div>
       </div>
       <div style="display:flex;gap:0.5rem">
         <button class="btn btn-secondary" id="btn-export-md">Export Markdown</button>

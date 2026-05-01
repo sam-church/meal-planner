@@ -42,6 +42,7 @@ def suggest_slots(week_plan):
         if r.cook_method
         and any(m in VALID_METHODS for m in r.cook_method)
         and r.id not in recently_used
+        and 'hungryroot' not in (r.tags or [])
     ]
 
     likes = {p.value.lower() for p in preferences if p.type == 'like'}

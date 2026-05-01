@@ -535,6 +535,20 @@ input:focus, select:focus, textarea:focus {
 }
 .recipe-tag.method { background: var(--bg-accent); border-color: #f0c4b0; color: var(--accent); }
 
+.hr-badge {
+  display: inline-block;
+  background: #e8f4e8;
+  border: 1px solid #a8d5a8;
+  border-radius: 4px;
+  padding: 0 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #3a7a3a;
+  vertical-align: middle;
+  margin-left: 0.3rem;
+  letter-spacing: 0.03em;
+}
+
 /* ── Shopping list ──────────────────────────────────────────────────────────── */
 .shopping-section { margin-bottom: 1.5rem; }
 .shopping-section-title {
