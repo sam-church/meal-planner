@@ -185,7 +185,7 @@ function bindPlannerEvents(week) {
 async function createNewWeek() {
   const today = new Date();
   const dayOfWeek = today.getDay();
-  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const daysToMonday = dayOfWeek === 0 ? 1 : 1 - dayOfWeek;
   const monday = new Date(today);
   monday.setDate(today.getDate() + daysToMonday);
   const iso = [monday.getFullYear(), String(monday.getMonth() + 1).padStart(2, '0'), String(monday.getDate()).padStart(2, '0')].join('-');
