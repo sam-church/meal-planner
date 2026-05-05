@@ -51,7 +51,19 @@ def update_week(week_id):
 
     data = request.get_json(silent=True) or {}
     if 'slots' in data:
-        wp.slots = data['slots']
+        from app.services.suggestion_service import LEFTOVER_PAIRS
+        slots = dict(data['slots'])
+        for dinner_key, lunch_key in LEFTOVER_PAIRS.items():
+            dinner_val = slots.get(dinner_key)
+            if dinner_val and not str(dinner_val).startswith('leftover:'):
+                dinner_recipe = db.session.get(Recipe, int(str(dinner_val)))
+                if dinner_recipe and dinner_recipe.makes_leftovers and not slots.get(lunch_key):
+                    slots[lunch_key] = f'leftover:{dinner_recipe.id}'
+            elif not dinner_val:
+                # Clear the paired lunch if it was a leftover reference
+                if str(slots.get(lunch_key, '')).startswith('leftover:'):
+                    del slots[lunch_key]
+        wp.slots = slots
     if 'notes' in data:
         wp.notes = data['notes']
     db.session.commit()
@@ -119,6 +131,10 @@ def sync_calendar(week_id):
 
     try:
         from app.services.calendar_service import sync_week
+    except ModuleNotFoundError as e:
+        return jsonify({'error': f'Missing dependency ({e}) — restart the server from the virtual environment: source venv/bin/activate && python run.py'}), 503
+
+    try:
         sync_week(wp, slots_with_recipes, cfg)
         wp.calendar_synced = True
         db.session.commit()

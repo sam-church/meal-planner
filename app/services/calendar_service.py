@@ -38,16 +38,30 @@ def find_calendar_id(service, calendar_name):
     return None
 
 
+def _delete_week_events(service, calendar_id, week_key):
+    """Delete all events previously synced for this week (identified by private extended property)."""
+    page_token = None
+    while True:
+        results = service.events().list(
+            calendarId=calendar_id,
+            privateExtendedProperty=f'meal_planner_week={week_key}',
+            pageToken=page_token,
+        ).execute()
+        for event in results.get('items', []):
+            service.events().delete(calendarId=calendar_id, eventId=event['id']).execute()
+        page_token = results.get('nextPageToken')
+        if not page_token:
+            break
+
+
 def sync_week(week_plan, slots_with_recipes, config):
-    """
-    Create Google Calendar events for each filled slot.
-    slots_with_recipes: dict of {slot_key: Recipe object}
-    config: object with LUNCH_START, DINNER_START, SUNDAY_PREP_START, CALENDAR_NAME, CALENDAR_TIMEZONE
-    """
     service = get_calendar_service()
     calendar_id = find_calendar_id(service, config.CALENDAR_NAME)
     if not calendar_id:
         raise ValueError(f"Calendar '{config.CALENDAR_NAME}' not found in your Google account")
+
+    week_key = str(week_plan.week_start_date)
+    _delete_week_events(service, calendar_id, week_key)
 
     tz = pytz.timezone(config.CALENDAR_TIMEZONE)
     week_start = week_plan.week_start_date
@@ -56,15 +70,14 @@ def sync_week(week_plan, slots_with_recipes, config):
         if not recipe:
             continue
 
-        # Parse slot key: e.g. 'mon_dinner', 'sunday_prep'
         if slot_key == 'sunday_prep':
             day_key = 'sunday'
             start_time_str = config.SUNDAY_PREP_START
         elif slot_key.endswith('_lunch'):
-            day_key = slot_key[:-6]  # strip '_lunch'
+            day_key = slot_key[:-6]
             start_time_str = config.LUNCH_START
         elif slot_key.endswith('_dinner'):
-            day_key = slot_key[:-7]  # strip '_dinner'
+            day_key = slot_key[:-7]
             start_time_str = config.DINNER_START
         else:
             continue
@@ -73,7 +86,7 @@ def sync_week(week_plan, slots_with_recipes, config):
         if day_offset is None:
             continue
 
-        from datetime import date as _date, timedelta as _td
+        from datetime import timedelta as _td
         event_date = week_start + _td(days=day_offset)
 
         h, m = map(int, start_time_str.split(':'))
@@ -87,5 +100,6 @@ def sync_week(week_plan, slots_with_recipes, config):
             'summary': recipe.name,
             'start': {'dateTime': start_dt.isoformat(), 'timeZone': config.CALENDAR_TIMEZONE},
             'end': {'dateTime': end_dt.isoformat(), 'timeZone': config.CALENDAR_TIMEZONE},
+            'extendedProperties': {'private': {'meal_planner_week': week_key}},
         }
         service.events().insert(calendarId=calendar_id, body=event).execute()
